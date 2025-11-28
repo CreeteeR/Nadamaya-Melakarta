@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>🎵 Nadamaya Melakarta Detector</title>
+<style>
+body {
+    background: linear-gradient(#c0f0ca, #a0d9a0);
+    color: #043619;
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+h1 { text-align:center; margin-bottom:20px; }
+h3 { margin-top:30px; }
+.swara-card {
+    background: #e0f8e0;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 2px 2px 8px rgba(0,0,0,0.2);
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+}
+.swara-info { font-weight:bold; font-size:16px; color:#1a4d1a; }
+button {
+    margin-left:10px; padding:6px 12px;
+    border:none; border-radius:8px;
+    background:#043619; color:#c0f0ca;
+    cursor:pointer; font-weight:bold;
+    transition:0.2s;
+}
+button:hover { background:#035d24; }
+select { margin-left:10px; padding:4px 8px; border-radius:5px; }
+#melakarta-result { margin-top:20px; font-weight:bold; font-size:18px; text-align:center; }
+</style>
+</head>
+<body>
+
+<h1>🎵 Nadamaya Melakarta Detector</h1>
+
+<h3>Select Sruthi / Tonic:</h3>
+<select id="sruthi-select" onchange="updateTonic()">
+  <option value="A3">A3 - 220 Hz (5.5)</option>
+  <option value="A#3">A#3 - 233.08 Hz (6)</option>
+  <option value="B3">B3 - 246.94 Hz (6.5)</option>
+  <option value="C4">C4 - 261.63 Hz (7)</option>
+  <option value="C#4">C#4 - 277.18 Hz (7.5)</option>
+  <option value="D4">D4 - 293.66 Hz (8)</option>
+  <option value="D#4">D#4 - 311.13 Hz (8.5)</option>
+  <option value="E4">E4 - 329.63 Hz (9)</option>
+  <option value="F4">F4 - 349.23 Hz (9.5)</option>
+  <option value="F#4">F#4 - 369.99 Hz (10)</option>
+  <option value="G4">G4 - 392.00 Hz (10.5)</option>
+  <option value="G#4">G#4 - 415.30 Hz (11)</option>
+</select>
+
+<div id="swara-list"></div>
+
+<h3>Verify or Correct Detected Swaras:</h3>
+<div id="dropdowns"></div>
+
+<button onclick="findMelakarta()">Detect Melakarta</button>
+<div id="melakarta-result"></div>
+
+<script>
+// ------------------- MELAKARTA DATA --------------------
+const melas = {
+"Kanakangi":["S","R1","G1","M1","P","D1","N1"], "Ratnangi":["S","R1","G1","M1","P","D1","N2"], "Ganamurthi":["S","R1","G1","M1","P","D1","N3"],
+"Vanaspati":["S","R1","G1","M1","P","D2","N2"], "Manavati":["S","R1","G1","M1","P","D2","N3"], "Tanarupi":["S","R1","G1","M1","P","D3","N3"],
+"Senavati":["S","R1","G2","M1","P","D1","N1"], "Hanumatodi":["S","R1","G2","M1","P","D1","N2"], "Dhenuka":["S","R1","G2","M1","P","D1","N3"],
+"Natakapriya":["S","R1","G2","M1","P","D2","N2"], "Kokilapriya":["S","R1","G2","M1","P","D2","N3"], "Rupavati":["S","R1","G2","M1","P","D3","N3"],
+"Gayakapriya":["S","R1","G3","M1","P","D1","N1"], "Vakulabharanam":["S","R1","G3","M1","P","D1","N2"], "Mayamalavagowla":["S","R1","G3","M1","P","D1","N3"],
+"Chakravakam":["S","R1","G3","M1","P","D2","N2"], "Suryakantam":["S","R1","G3","M1","P","D2","N3"], "Hatakambari":["S","R1","G3","M1","P","D3","N3"],
+"Jhankaradhvani":["S","R2","G2","M1","P","D1","N1"], "Natabhairavi":["S","R2","G2","M1","P","D1","N2"], "Kiravani":["S","R2","G2","M1","P","D1","N3"],
+"Kharaharapriya":["S","R2","G2","M1","P","D2","N2"], "Gourimanohari":["S","R2","G2","M1","P","D2","N3"], "Varunapriya":["S","R2","G2","M1","P","D3","N3"],
+"Mararanjani":["S","R2","G3","M1","P","D1","N1"], "Charukesi":["S","R2","G3","M1","P","D1","N2"], "Sarasangi":["S","R2","G3","M1","P","D1","N3"],
+"Harikambhoji":["S","R2","G3","M1","P","D2","N2"], "Dheerasankarabharanam":["S","R2","G3","M1","P","D2","N3"], "Naganandini":["S","R2","G3","M1","P","D3","N3"],
+"Yagapriya":["S","R3","G3","M1","P","D1","N1"], "Ragavardhini":["S","R3","G3","M1","P","D1","N2"], "Gangeyabhushani":["S","R3","G3","M1","P","D1","N3"],
+"Vagadheeswari":["S","R3","G3","M1","P","D2","N2"], "Sulini":["S","R3","G3","M1","P","D2","N3"], "Chalanata":["S","R3","G3","M1","P","D3","N3"],
+"Salagam":["S","R1","G1","M2","P","D1","N1"], "Jalarnavam":["S","R1","G1","M2","P","D1","N2"], "Jhalavarali":["S","R1","G1","M2","P","D1","N3"],
+"Navaneetam":["S","R1","G1","M2","P","D2","N2"], "Pavani":["S","R1","G1","M2","P","D2","N3"], "Raghupriya":["S","R1","G1","M2","P","D3","N3"],
+"Gavambodhi":["S","R1","G2","M2","P","D1","N1"], "Bhavapriya":["S","R1","G2","M2","P","D1","N2"], "Shubhapantuvarali":["S","R1","G2","M2","P","D1","N3"],
+"Shadvidhamargini":["S","R1","G2","M2","P","D2","N2"], "Suvarnangi":["S","R1","G2","M2","P","D2","N3"], "Divyamani":["S","R1","G2","M2","P","D3","N3"],
+"Dhavalambari":["S","R1","G3","M2","P","D1","N1"], "Namanarayani":["S","R1","G3","M2","P","D1","N2"], "Kamavardhani":["S","R1","G3","M2","P","D1","N3"],
+"Ramapriya":["S","R1","G3","M2","P","D2","N2"], "Gamanashrama":["S","R1","G3","M2","P","D2","N3"], "Vishwambari":["S","R1","G3","M2","P","D3","N3"],
+"Shamalangi":["S","R2","G2","M2","P","D1","N1"], "Shanmukhapriya":["S","R2","G2","M2","P","D1","N2"], "Simhendramadhyamam":["S","R2","G2","M2","P","D1","N3"],
+"Hemavati":["S","R2","G2","M2","P","D2","N2"], "Dharmavati":["S","R2","G2","M2","P","D2","N3"], "Neetimati":["S","R2","G2","M2","P","D3","N3"],
+"Kantamani":["S","R2","G3","M2","P","D1","N1"], "Rishabhapriya":["S","R2","G3","M2","P","D1","N2"], "Latangi":["S","R2","G3","M2","P","D1","N3"],
+"Vachaspati":["S","R2","G3","M2","P","D2","N2"], "Mechakalyani":["S","R2","G3","M2","P","D2","N3"], "Chitrambari":["S","R2","G3","M2","P","D3","N3"],
+"Sucharitra":["S","R3","G3","M2","P","D1","N1"], "Jyotiswarupini":["S","R3","G3","M2","P","D1","N2"], "Dhatuvardani":["S","R3","G3","M2","P","D1","N3"],
+"Nasikabhushani":["S","R3","G3","M2","P","D2","N2"], "Kosalam":["S","R3","G3","M2","P","D2","N3"], "Rasikapriya":["S","R3","G3","M2","P","D3","N3"]
+};
+
+// ------------------- SWARA DATA --------------------
+let tonicFreq=220;
+const tonicMap={"A3":220,"A#3":233.08,"B3":246.94,"C4":261.63,"C#4":277.18,"D4":293.66,"D#4":311.13,"E4":329.63,"F4":349.23,"F#4":369.99,"G4":392,"G#4":415.3};
+let swaraFreqs={}; 
+const swaraNames=["Sa","Ri","Ga","Ma","Pa","Da","Ni"];
+const swaraOptions={"Sa":["S"],"Ri":["R1","R2","R3"],"Ga":["G1","G2","G3"],"Ma":["M1","M2"],"Pa":["P"],"Da":["D1","D2","D3"],"Ni":["N1","N2","N3"]};
+
+let audioCtx,analyser,dataArray,streams={},detectedSwaras={};
+
+// ------------------- UI --------------------
+function createUI(){
+  const container=document.getElementById("swara-list");
+  swaraNames.forEach(s=>{
+    const card=document.createElement("div"); card.className="swara-card";
+    const info=document.createElement("span"); info.className="swara-info"; info.id=s+"-detected"; info.innerText=s+" ";
+    const startBtn=document.createElement("button"); startBtn.innerText="Start"; startBtn.onclick=()=>startDetect(s,startBtn);
+    const stopBtn=document.createElement("button"); stopBtn.innerText="Stop"; stopBtn.onclick=()=>stopDetect(s,startBtn);
+    card.appendChild(info); card.appendChild(startBtn); card.appendChild(stopBtn);
+    container.appendChild(card);
+  });
+  updateDropdowns();
+}
+
+// ------------------- AUDIO --------------------
+function startDetect(s,btn){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+    streams[s]=stream;
+    const source=audioCtx.createMediaStreamSource(stream);
+    analyser=audioCtx.createAnalyser();
+    analyser.fftSize=4096;
+    source.connect(analyser);
+    dataArray=new Float32Array(analyser.fftSize);
+    btn.disabled=true;
+    detectLoop(s);
+  });
+}
+
+function stopDetect(s,btn){
+  if(streams[s]){
+    streams[s].getTracks().forEach(t=>t.stop());
+    delete streams[s];
+    btn.disabled=false;
+  }
+}
+
+function detectLoop(s){
+  if(!streams[s]) return;
+  analyser.getFloatTimeDomainData(dataArray);
+  const freq=autoCorrelate(dataArray,audioCtx.sampleRate);
+  if(freq>0){
+    const closest=closestSwara(freq,s);
+    detectedSwaras[s]=closest;
+    document.getElementById(s+"-detected").innerText=s+": "+closest;
+    updateDropdowns();
+  }
+  requestAnimationFrame(()=>detectLoop(s));
+}
+
+function autoCorrelate(buf,sr){
+  let SIZE=buf.length;
+  let rms=0; for(let i=0;i<SIZE;i++) rms+=buf[i]*buf[i];
+  rms=Math.sqrt(rms/SIZE); if(rms<0.01) return -1;
+  let r=new Array(SIZE).fill(0);
+  for(let i=0;i<SIZE;i++) for(let j=0;j<SIZE-i;j++) r[i]+=buf[j]*buf[j+i];
+  let d=0; while(r[d]>r[d+1]) d++;
+  let maxval=-1,maxpos=-1;
+  for(let i=d;i<SIZE;i++){ if(r[i]>maxval){ maxval=r[i]; maxpos=i; } }
+  let T=maxpos;
+  return sr/T;
+}
+
+function closestSwara(freq, swaraGroup){
+  const ranges = {
+    "R1":[tonicFreq*1.059,tonicFreq*1.075],"R2":[tonicFreq*1.122,tonicFreq*1.135],"R3":[tonicFreq*1.189,tonicFreq*1.205],
+    "G1":[tonicFreq*1.122,tonicFreq*1.135],"G2":[tonicFreq*1.189,tonicFreq*1.205],"G3":[tonicFreq*1.26,tonicFreq*1.275],
+    "M1":[tonicFreq*1.334,tonicFreq*1.345],"M2":[tonicFreq*1.414,tonicFreq*1.425],
+    "D1":[tonicFreq*1.587,tonicFreq*1.605],"D2":[tonicFreq*1.682,tonicFreq*1.7],"D3":[tonicFreq*1.782,tonicFreq*1.8],
+    "N1":[tonicFreq*1.682,tonicFreq*1.7],"N2":[tonicFreq*1.782,tonicFreq*1.8],"N3":[tonicFreq*1.888,tonicFreq*1.905],
+    "S":[tonicFreq*0.99,tonicFreq*1.01],"P":[tonicFreq*1.498,tonicFreq*1.515]
+  };
+  let options = swaraOptions[swaraGroup];
+  for(let o of options){
+    if(freq>=ranges[o][0] && freq<=ranges[o][1]) return o;
+  }
+  // fallback
+  let closest=options[0]; let minDiff=Infinity;
+  for(let o of options){
+    const diff=Math.abs(freq-swaraFreqs[o]);
+    if(diff<minDiff){ minDiff=diff; closest=o; }
+  }
+  return closest;
+}
+
+// ------------------- DROPDOWNS --------------------
+function updateDropdowns(){
+  const container=document.getElementById("dropdowns");
+  container.innerHTML="";
+  swaraNames.forEach(s=>{
+    let row=document.createElement("div"); row.className="swara-card";
+    let label=document.createElement("label"); label.innerText=s+": ";
+    let select=document.createElement("select"); select.id=s+"-select";
+    swaraOptions[s].forEach(o=>{
+      let option=document.createElement("option"); option.value=o; option.innerText=o;
+      if(detectedSwaras[s]===o) option.selected=true;
+      select.appendChild(option);
+    });
+    row.appendChild(label); row.appendChild(select);
+    container.appendChild(row);
+  });
+}
+
+// ------------------- MELAKARTA DETECTION --------------------
+function findMelakarta(){
+  const sel=swaraNames.map(s=>document.getElementById(s+"-select").value);
+  if((sel.includes("R2") && sel.includes("G1")) || (sel.includes("R3") && sel.includes("G2"))){
+    document.getElementById("melakarta-result").innerText="Invalid combination: R/G conflict";
+    return;
+  }
+  for(const [mela, swaras] of Object.entries(melas)){
+    if(JSON.stringify(swaras)===JSON.stringify(sel)){
+      document.getElementById("melakarta-result").innerText="Your Melakarta is: "+mela;
+      return;
+    }
+  }
+  document.getElementById("melakarta-result").innerText="No matching Melakarta found";
+}
+
+// ------------------- TONIC --------------------
+function updateTonic(){
+  const sel=document.getElementById("sruthi-select").value;
+  tonicFreq=tonicMap[sel];
+  swaraFreqs["S"]=tonicFreq; swaraFreqs["P"]=tonicFreq*1.498;
+  swaraFreqs["R1"]=tonicFreq*1.059; swaraFreqs["R2"]=tonicFreq*1.122; swaraFreqs["R3"]=tonicFreq*1.189;
+  swaraFreqs["G1"]=tonicFreq*1.122; swaraFreqs["G2"]=tonicFreq*1.189; swaraFreqs["G3"]=tonicFreq*1.26;
+  swaraFreqs["M1"]=tonicFreq*1.334; swaraFreqs["M2"]=tonicFreq*1.414;
+  swaraFreqs["D1"]=tonicFreq*1.587; swaraFreqs["D2"]=tonicFreq*1.682; swaraFreqs["D3"]=tonicFreq*1.782;
+  swaraFreqs["N1"]=tonicFreq*1.682; swaraFreqs["N2"]=tonicFreq*1.782; swaraFreqs["N3"]=tonicFreq*1.888;
+}
+updateTonic(); createUI();
+</script>
+
+</body>
+</html>
